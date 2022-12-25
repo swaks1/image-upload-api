@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SCM.API.Data;
 using SCM.API.Data.Entities;
+using SCM.API.Models.Images;
 
 namespace SCM.API.Controllers
 {
@@ -23,104 +24,91 @@ namespace SCM.API.Controllers
 
         // GET: api/Users
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUser()
+        public async Task<ActionResult<IEnumerable<UsersResponseDto>>> GetUsers()
         {
-            if (_context.User == null)
-            {
-                return NotFound();
-            }
-            return await _context.User
+            var users = await _context.Users
                 .Include(x => x.Images)
                 .ToListAsync();
+
+            var result = users.Select(user => new UsersResponseDto
+            {
+                Id = user.Id,
+                Name = user.Name,
+                Images = user.Images.Select(image => new ImageResponseDto
+                {
+                    Id = image.Id,
+                    UserId = image.UserId,
+                    Url = $"{Request.Scheme}://{Request.Host.Value}/{image.Location}"
+                }).ToList()
+            });
+
+            return result.ToList();
         }
 
         // GET: api/Users/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<User>> GetUser(int id)
+        public async Task<ActionResult<UsersResponseDto>> GetUser(int id)
         {
-            if (_context.User == null)
-            {
-                return NotFound();
-            }
-            var user = await _context.User.FindAsync(id);
+            var user = await _context.Users
+                .Include(x => x.Images)
+                .FirstOrDefaultAsync(x => x.Id == id);
 
             if (user == null)
             {
                 return NotFound();
             }
 
-            return user;
+            return new UsersResponseDto
+            {
+                Id = user.Id,
+                Name = user.Name,
+                Images = user.Images.Select(image => new ImageResponseDto
+                {
+                    Id = image.Id,
+                    UserId = image.UserId,
+                    Url = $"{Request.Scheme}://{Request.Host.Value}/{image.Location}"
+                }).ToList()
+            };
         }
 
         // PUT: api/Users/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutUser(int id, User user)
+        public async Task<IActionResult> PutUser(int id, UsersRequestDto user)
         {
-            if (id != user.Id)
+            var userFromDatabase = await _context.Users.FindAsync(id);
+
+            if (userFromDatabase == null)
             {
-                return BadRequest();
+                return NotFound();
             }
 
-            _context.Entry(user).State = EntityState.Modified;
+            userFromDatabase.Name = user.Name;
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UserExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            _context.Entry(userFromDatabase).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }
 
         // POST: api/Users
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<User>> PostUser(User user)
+        public async Task<ActionResult<User>> PostUser(UsersRequestDto user)
         {
-            if (_context.User == null)
+            var userForDatabase = new User
             {
-                return Problem("Entity set 'SCMContext.User'  is null.");
-            }
-            _context.User.Add(user);
+                Name = user.Name
+            };
+            _context.Users.Add(userForDatabase);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetUser", new { id = user.Id }, user);
-        }
-
-        // DELETE: api/Users/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(int id)
-        {
-            if (_context.User == null)
+            var response = new UsersResponseDto
             {
-                return NotFound();
-            }
-            var user = await _context.User.FindAsync(id);
-            if (user == null)
-            {
-                return NotFound();
-            }
+                Id = userForDatabase.Id,
+                Name = userForDatabase.Name,
+                Images = new List<ImageResponseDto>()
+            };
 
-            _context.User.Remove(user);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        private bool UserExists(int id)
-        {
-            return (_context.User?.Any(e => e.Id == id)).GetValueOrDefault();
+            return Created("PostUser", response);
         }
     }
 }

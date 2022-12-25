@@ -10,8 +10,8 @@ namespace SCM.API.Data
         {
         }
 
-        public DbSet<User> User { get; set; } = default!;
+        public DbSet<User> Users { get; set; } = default!;
 
-        public DbSet<Image> Image { get; set; } = default!;
+        public DbSet<Image> Images { get; set; } = default!;
     }
 }

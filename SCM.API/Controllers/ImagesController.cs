@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SCM.API.Data;
 using SCM.API.Data.Entities;
 using SCM.API.Models.Images;
+using System.Linq;
 
 namespace SCM.API.Controllers
 {
@@ -22,75 +23,61 @@ namespace SCM.API.Controllers
 
         // GET: api/Images
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Image>>> GetImage()
+        public async Task<ActionResult<IEnumerable<ImageResponseDto>>> GetImages()
         {
-            if (_context.Image == null)
+            var images = await _context.Images.ToListAsync();
+
+            var response = images.Select(image => new ImageResponseDto
             {
-                return NotFound();
-            }
-            return await _context.Image.ToListAsync();
+                Id = image.Id,
+                UserId = image.UserId,
+                Url = $"{Request.Scheme}://{Request.Host.Value}/{image.Location}"
+            });
+
+            return response.ToList();
         }
 
         // GET: api/Images/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Image>> GetImage(int id)
+        public async Task<ActionResult<ImageResponseDto>> GetImage(int id)
         {
-            if (_context.Image == null)
-            {
-                return NotFound();
-            }
-            var image = await _context.Image.FindAsync(id);
+            var image = await _context.Images.FindAsync(id);
 
             if (image == null)
             {
                 return NotFound();
             }
 
-            return image;
+            return new ImageResponseDto
+            {
+                Id = image.Id,
+                UserId = image.UserId,
+                Url = $"{Request.Scheme}://{Request.Host.Value}/{image.Location}"
+            };
         }
 
-        // PUT: api/Images/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutImage(int id, Image image)
-        {
-            if (id != image.Id)
-            {
-                return BadRequest();
-            }
-
-            _context.Entry(image).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ImageExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
 
         // POST: api/Images
         [HttpPost]
         public async Task<ActionResult<Image>> PostImage([FromForm] ImageRequestDto image)
         {
+            if (image.UserId <= 0)
+                return BadRequest("Enter User Id for the image");
+
+            if (image.File == null || image.File.Length <= 0 || !image.File.ContentType.Contains("image"))
+                return BadRequest("Please upload valid image");
+
+            var user = await _context.Users.FindAsync(image.UserId);
+            if (user == null)
+                return BadRequest("User doesnt't exists");
+
+            var uploadFolder = Path.Combine(_webHostEnvironment.ContentRootPath, $"Images", image.UserId.ToString());
+            Directory.CreateDirectory(uploadFolder);
+
             var uniqueFileName = $"{Guid.NewGuid()}_{image.File.FileName}";
+            var fullFilePath = Path.Combine(uploadFolder, uniqueFileName);
 
-            string uploadsFolder = Path.Combine(_webHostEnvironment.ContentRootPath, "images");
-            Directory.CreateDirectory(uploadsFolder);
-
-            string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            using (var fileStream = new FileStream(fullFilePath, FileMode.Create))
             {
                 image.File.CopyTo(fileStream);
             }
@@ -100,38 +87,42 @@ namespace SCM.API.Controllers
                 UserId = image.UserId,
                 Name = image.File.FileName,
                 Extension = Path.GetExtension(image.File.FileName),
-                Location = filePath
+                Location = $"Images/{image.UserId}/{uniqueFileName}"
             };
-            _context.Image.Add(imageForDatabase);
 
+            _context.Images.Add(imageForDatabase);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetImage", new { id = imageForDatabase.Id }, imageForDatabase);
+            var response = new ImageResponseDto
+            {
+                Id = imageForDatabase.Id,
+                UserId = imageForDatabase.UserId,
+                Url = $"{Request.Scheme}://{Request.Host.Value}/{imageForDatabase.Location}"
+            };
+
+            return Created("PostImage", response);
         }
 
         // DELETE: api/Images/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteImage(int id)
         {
-            if (_context.Image == null)
-            {
-                return NotFound();
-            }
-            var image = await _context.Image.FindAsync(id);
+            var image = await _context.Images.FindAsync(id);
             if (image == null)
             {
                 return NotFound();
             }
 
-            _context.Image.Remove(image);
+            var filePath = Path.Combine(_webHostEnvironment.ContentRootPath, image.Location);
+            if (System.IO.File.Exists(filePath))
+            {
+                System.IO.File.Delete(filePath);
+            }
+
+            _context.Images.Remove(image);
             await _context.SaveChangesAsync();
 
             return NoContent();
-        }
-
-        private bool ImageExists(int id)
-        {
-            return (_context.Image?.Any(e => e.Id == id)).GetValueOrDefault();
         }
     }
 }
