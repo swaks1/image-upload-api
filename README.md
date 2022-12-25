@@ -4,7 +4,6 @@
 
 Install VisualStudio 2022 - https://visualstudio.microsoft.com/vs/
 
-Install Microsoft SQL Express - https://www.microsoft.com/en-us/sql-server/sql-server-downloads
 
 
 **Get Started**
