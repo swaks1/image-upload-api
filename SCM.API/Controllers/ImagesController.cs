@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using SCM.API.Data;
 using SCM.API.Data.Entities;
 using SCM.API.Models.Images;
-using System.Linq;
 
 namespace SCM.API.Controllers
 {
@@ -59,7 +58,7 @@ namespace SCM.API.Controllers
 
         // POST: api/Images
         [HttpPost]
-        public async Task<ActionResult<Image>> PostImage([FromForm] ImageRequestDto image)
+        public async Task<ActionResult<ImageResponseDto>> PostImage([FromForm] ImageRequestDto image)
         {
             if (image.UserId <= 0)
                 return BadRequest("Enter User Id for the image");

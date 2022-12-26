@@ -1,13 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SCM.API.Data;
 using SCM.API.Data.Entities;
 using SCM.API.Models.Images;
+using SCM.API.Models.Users;
 
 namespace SCM.API.Controllers
 {
@@ -92,7 +88,7 @@ namespace SCM.API.Controllers
 
         // POST: api/Users
         [HttpPost]
-        public async Task<ActionResult<User>> PostUser(UsersRequestDto user)
+        public async Task<ActionResult<UsersResponseDto>> PostUser(UsersRequestDto user)
         {
             var userForDatabase = new User
             {

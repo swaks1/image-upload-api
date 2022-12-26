@@ -1,4 +1,6 @@
-﻿namespace SCM.API.Models.Images
+﻿using SCM.API.Models.Images;
+
+namespace SCM.API.Models.Users
 {
     public class UsersResponseDto
     {

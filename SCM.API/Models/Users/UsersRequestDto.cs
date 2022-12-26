@@ -1,4 +1,4 @@
-﻿namespace SCM.API.Models.Images
+﻿namespace SCM.API.Models.Users
 {
     public class UsersRequestDto
     {
